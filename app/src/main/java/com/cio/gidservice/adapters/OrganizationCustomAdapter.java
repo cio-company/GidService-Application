@@ -10,13 +10,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.cio.gidservice.R;
-import com.cio.gidservice.activities.MainActivity;
 import com.cio.gidservice.activities.OrganizationActivity;
 import com.cio.gidservice.models.Organization;
+import com.cio.gidservice.viewController.ClickListener;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -28,12 +29,14 @@ public class OrganizationCustomAdapter extends RecyclerView.Adapter<Organization
 
     private static final String TAG = "OrganizationCustomAdapter";
 
-    private List<Organization> organizationList;
-    private Context context;
+    protected List<Organization> organizationList;
+    protected Context context;
+    protected ClickListener clickListener;
 
-    public OrganizationCustomAdapter(Context context, List<Organization> organizationList) {
+    public OrganizationCustomAdapter(Context context, List<Organization> organizationList, ClickListener clickListener) {
         this.context = context;
         this.organizationList = organizationList;
+        this.clickListener = clickListener;
     }
 
     class OrganizationViewHolder extends RecyclerView.ViewHolder {
@@ -44,6 +47,7 @@ public class OrganizationCustomAdapter extends RecyclerView.Adapter<Organization
         private TextView description;
         private TextView rating;
         private CircleImageView image;
+        private CardView cardView;
 
         private OrganizationViewHolder(@NonNull View mView) {
             super(mView);
@@ -52,6 +56,47 @@ public class OrganizationCustomAdapter extends RecyclerView.Adapter<Organization
             description = mView.findViewById(R.id.description);
             rating = mView.findViewById(R.id.rating);
             image = mView.findViewById(R.id.organization_image);
+            cardView = mView.findViewById(R.id.organization_cardView);
+        }
+
+        public TextView getName() {
+            return name;
+        }
+
+        public void setName(TextView name) {
+            this.name = name;
+        }
+
+        public TextView getDescription() {
+            return description;
+        }
+
+        public void setDescription(TextView description) {
+            this.description = description;
+        }
+
+        public TextView getRating() {
+            return rating;
+        }
+
+        public void setRating(TextView rating) {
+            this.rating = rating;
+        }
+
+        public CircleImageView getImage() {
+            return image;
+        }
+
+        public void setImage(CircleImageView image) {
+            this.image = image;
+        }
+
+        public void setCardView(CardView cardView) {
+            this.cardView = cardView;
+        }
+
+        public CardView getCardView() {
+            return cardView;
         }
     }
 
@@ -73,10 +118,11 @@ public class OrganizationCustomAdapter extends RecyclerView.Adapter<Organization
         }catch (NullPointerException e) {
             holder.rating.setText("0");
         }
-        holder.description.setOnClickListener(v -> {
+        holder.cardView.setOnClickListener(v -> {
             Gson gson = new GsonBuilder()
                     .setPrettyPrinting()
                     .create();
+            clickListener.onClick();
             String forSave = gson.toJson(organizationList.get(position));
             Intent intent = new Intent(context, OrganizationActivity.class);
             intent.putExtra("organization", forSave);
@@ -86,6 +132,7 @@ public class OrganizationCustomAdapter extends RecyclerView.Adapter<Organization
         Glide.with(context)
                 .asBitmap()
                 .load(organizationList.get(position).getImageUrl())
+                .placeholder(R.drawable.placeholder_image)
                 .into(holder.image);
     }
 

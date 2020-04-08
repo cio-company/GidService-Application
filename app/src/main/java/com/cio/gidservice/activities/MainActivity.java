@@ -1,22 +1,31 @@
 package com.cio.gidservice.activities;
 
+import android.app.ProgressDialog;
+import android.content.Intent;
+import android.os.Build;
+import android.os.Bundle;
+import android.view.MenuItem;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import android.app.ProgressDialog;
-import android.os.Build;
-import android.os.Bundle;
-
 import com.cio.gidservice.R;
-import com.cio.gidservice.models.Organization;
-import com.cio.gidservice.models.Service;
 import com.cio.gidservice.adapters.OrganizationCustomAdapter;
+import com.cio.gidservice.dao.App;
+import com.cio.gidservice.dao.AppDatabase;
+import com.cio.gidservice.dao.OrganizationDao;
+import com.cio.gidservice.dao.ServiceDao;
+import com.cio.gidservice.models.Organization;
+import com.google.android.material.navigation.NavigationView;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -24,15 +33,15 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private OrganizationCustomAdapter adapter;
     private RecyclerView recyclerView;
-    ProgressDialog progressDialog;
+    private DrawerLayout drawLay;
+    private ActionBarDrawerToggle drawTog;
+    private NavigationView navView;
+    private ProgressDialog progressDialog;
 
-    SwipeRefreshLayout refreshLayout;
+    private SwipeRefreshLayout refreshLayout;
+
 
     List<Organization> organizations = new ArrayList<>();
-
-    /*//vars
-    private ArrayList<String> mNames = new ArrayList<>();
-    private ArrayList<String> mImagesUrl = new ArrayList<>();*/
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
@@ -40,8 +49,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.test_layout1);
 
-        //initImageBitmap();
+        settingUpNavigationMenu();
 
+        settingUpRefreshLayout();
+
+    }
+
+    private void settingUpRefreshLayout() {
         refreshLayout = findViewById(R.id.refreshLayout);
         refreshLayout.setOnRefreshListener(() -> {
             try {
@@ -56,43 +70,74 @@ public class MainActivity extends AppCompatActivity {
         progressDialog = new ProgressDialog(MainActivity.this);
         progressDialog.setMessage("Loading....");
         progressDialog.show();
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         progressDialog.dismiss();
         generateDataList(organizations);
+    }
 
-        /*OrganizationAPIManager service = RetrofitClientInstance.getRetrofitInstance().create(OrganizationAPIManager.class);
-        Call<List<Organization>> listCall = service.getOrganizationList(1L);
-        listCall.enqueue(new Callback<List<Organization>>() {
-            @Override
-            public void onResponse(Call<List<Organization>> call, Response<List<Organization>> response) {
-                progressDialog.dismiss();
-                if(response.isSuccessful())
-                    generateDataList(response.body());
-                else {
-                    Log.d(TAG, String.valueOf(response.code()));
-                    Toast.makeText(MainActivity.this, response.toString(), Toast.LENGTH_SHORT).show();
-                }
+    private void settingUpNavigationMenu() {
+        drawLay = findViewById(R.id.main_layout);
+        drawTog = new ActionBarDrawerToggle(this, drawLay, R.string.Open, R.string.Close);
+        drawLay.addDrawerListener(drawTog);
+        drawTog.syncState();
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        //getSupport
+        navView = findViewById(R.id.navigation_view);
+        navView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            switch(id) {
+                case R.id.nav_search:
+                    Toast.makeText(this, "Search item selected", Toast.LENGTH_SHORT).show();
+                    /*Intent intent = new Intent(this, AddOrganizationActivity.class);
+                    startActivity(intent);*/
+                    break;
+                case R.id.nav_add_organization:
+                    Toast.makeText(this, "Add organization item selected", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(this, AddOrganizationActivity.class);
+                    startActivity(intent);
+                    break;
+                case R.id.nav_organization_manage:
+                    Toast.makeText(this, "Add service item selected", Toast.LENGTH_SHORT).show();
+                    Intent intent1 = new Intent(this, ManageActivity.class);
+                    startActivity(intent1);
+                    break;
             }
+            return true;
+        });
+    }
 
-            @Override
-            public void onFailure(Call<List<Organization>> call, Throwable t) {
-                progressDialog.dismiss();
-                System.out.println(t.getMessage());
-                Toast.makeText(MainActivity.this, "Something went wrong...Please try later!", Toast.LENGTH_SHORT).show();
-            }
-        });*/
-        /*final EditText phone = findViewById(R.id.phoneTextField);
-        final EditText pass = findViewById(R.id.passwordTextField);*/
-
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if(drawTog.onOptionsItemSelected(item)){
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void generateDataList(List<Organization> dataList) {
-        //Создание/получение данных (model)
-        List<Organization> list = new ArrayList<>(Arrays.asList(
+
+        AppDatabase db = App.getInstance().getDatabase();
+        OrganizationDao orgDB = db.organizationDao();
+        organizations = orgDB.getAll();
+        System.out.println(organizations.size());
+
+        //Получение RecyclerView
+        recyclerView = findViewById(R.id.recyclerView);
+        //создание адаптера для RecyclerView
+        adapter = new OrganizationCustomAdapter(this, organizations, () -> {
+            AppDatabase database = App.getInstance().getDatabase();
+            ServiceDao serviceDao = database.serviceDao();
+            for (Organization organization: organizations) {
+                organization.setServices(serviceDao.getAllByOrgId(organization.getId()));
+                System.out.println("organizationId: " + organization.getId());
+            }
+        });
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
+        recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setAdapter(adapter);
+    }
+
+    //Создание/получение данных (model)
+        /*List<Organization> list = new ArrayList<>(Arrays.asList(
                 new Organization(1L,
                         "Парикмахерская 1",
                         "Лучшая парикмахерская в вашей жизни!",
@@ -119,7 +164,7 @@ public class MainActivity extends AppCompatActivity {
                                         "Лучшей стрижки вы не делали никогда!",
                                         35,
                                         150F,
-                                        ""),
+                                        "https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"),
                                 new Service(4L,
                                         "Стрижка 2",
                                         "Лучшей стрижки вы не делали никогда!",
@@ -155,21 +200,12 @@ public class MainActivity extends AppCompatActivity {
                                         35,
                                         150F,
                                         "https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"))),
-                        "https://images.unsplash.com/photo-1441786485319-5e0f0c092803?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60")));
-        organizations.addAll(list);
-        //Получение RecyclerView
-        recyclerView = findViewById(R.id.recyclerView);
-        //создание адаптера для RecyclerView
-        adapter = new OrganizationCustomAdapter(this, organizations);
-        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
-        recyclerView.setLayoutManager(layoutManager);
-        recyclerView.setAdapter(adapter);
-    }
+                        "https://images.unsplash.com/photo-1441786485319-5e0f0c092803?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60")));*/
 
     /*private void initImageBitmap() {
         Log.d(TAG, "initImageBitmap: preparing bitmaps.");
 
-        mImagesUrl.add("https://images.unsplash.com/photo-1441786485319-5e0f0c092803?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60");
+        mImagesUrl.add("");
         mNames.add("James John");
 
         mImagesUrl.add("https://images.unsplash.com/photo-1489278353717-f64c6ee8a4d2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60");
@@ -181,7 +217,7 @@ public class MainActivity extends AppCompatActivity {
         mImagesUrl.add("https://images.unsplash.com/photo-1514846326710-096e4a8035e0?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60");
         mNames.add("Bill Gates");
 
-        mImagesUrl.add("https://images.unsplash.com/photo-1487222477894-8943e31ef7b2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60");
+        mImagesUrl.add("");
         mNames.add("Brave Heart");
 
         mImagesUrl.add("");
